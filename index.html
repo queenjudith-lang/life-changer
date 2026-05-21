@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+    <meta name="theme-color" content="#0a0a1a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="description" content="Life RPG – Gamified personal transformation system">
+    <title>Life RPG – Ascend & Master</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Orbitron:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        /* ========== RESET & VARIABLES ========== */
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        :root {
+            --bg-primary: #0a0a1a;
+            --bg-secondary: #12122a;
+            --bg-card: rgba(26, 26, 62, 0.75);
+            --bg-card-solid: #1a1a3e;
+            --bg-hover: #252550;
+            --accent: #00d4aa;
+            --accent-glow: rgba(0, 212, 170, 0.3);
+            --accent-secondary: #ff6b9d;
+            --accent-tertiary: #ffd93d;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0c0;
+            --text-muted: #606080;
+            --border-glass: rgba(255,255,255,0.12);
+            --sidebar-width: 72px;
+            --container-max: 1300px;
+            --safe-top: env(safe-area-inset-top, 0px);
+            --safe-bottom: env(safe-area-inset-bottom, 0px);
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+            padding-left: var(--sidebar-width);
+            line-height: 1.5;
+        }
+        /* 3D Canvas backgrounds */
+        #global-bg-canvas, #exercise-bg-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            pointer-events: none;
+        }
+        #exercise-bg-canvas { display: none; }
+        .app-container {
+            position: relative;
+            z-index: 2;
+            max-width: var(--container-max);
+            margin: 0 auto;
+            padding: 24px;
+            min-height: 100vh;
+        }
+        /* ========== SIDEBAR ========== */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: var(--sidebar-width);
+            background: rgba(18, 18, 42, 0.95);
+            backdrop-filter: blur(20px);
+            border-right: 1px solid var(--border-glass);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 24px 0;
+            z-index: 200;
+            transition: transform 0.35s ease;
+        }
+        .sidebar-item {
+            width: 52px;
+            height: 52px;
+            border-radius: 14px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: var(--text-muted);
+            transition: all 0.2s;
+            margin: 4px 0;
+        }
+        .sidebar-item.active {
+            background: rgba(0, 212, 170, 0.15);
+            color: var(--accent);
+            box-shadow: 0 0 12px var(--accent-glow);
+        }
+        .sidebar-icon { font-size: 22px; margin-bottom: 2px; }
+        .sidebar-label { font-size: 9px; font-weight: 600; font-family: 'Orbitron', monospace; }
+        /* ========== PAGES ========== */
+        .page { display: none; animation: fadeIn 0.3s ease; }
+        .page.active { display: block; }
+        /* ========== CARDS & COMPONENTS ========== */
+        .stats-row, .card-grid, .category-grid { display: grid; gap: 16px; }
+        .stats-row { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
+        .stat-card, .quest-card, .battle-zone, .legend-setup, .skill-domain {
+            background: var(--bg-card);
+            backdrop-filter: blur(12px);
+            border-radius: 20px;
+            border: 1px solid var(--border-glass);
+            padding: 18px;
+            transition: all 0.2s;
+        }
+        .xp-container {
+            background: var(--bg-card);
+            backdrop-filter: blur(12px);
+            border-radius: 20px;
+            padding: 18px;
+            margin-bottom: 24px;
+        }
+        .xp-bar-bg {
+            height: 10px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .xp-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), var(--accent-secondary));
+            width: 0%;
+            transition: width 0.4s;
+        }
+        .phase-badge {
+            background: var(--bg-card);
+            border-radius: 20px;
+            padding: 10px 18px;
+            border: 2px solid var(--accent);
+            text-align: center;
+            animation: phaseGlow 2s infinite alternate;
+        }
+        .momentum-btn {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent), var(--accent-secondary));
+            border: none;
+            color: white;
+            font-size: 28px;
+            cursor: pointer;
+            z-index: 250;
+            box-shadow: 0 0 20px var(--accent-glow);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(12px);
+            z-index: 300;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background: var(--bg-card-solid);
+            border-radius: 28px;
+            padding: 28px;
+            max-width: 500px;
+            width: 90%;
+            border: 1px solid var(--border-glass);
+        }
+        .btn-primary {
+            width: 100%;
+            padding: 14px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-secondary));
+            border: none;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .btn-secondary {
+            background: var(--bg-hover);
+            border: 1px solid var(--border-glass);
+            padding: 8px 16px;
+            border-radius: 12px;
+            color: var(--text-primary);
+            cursor: pointer;
+        }
+        .skill-tree-view {
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+        .skill-node {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 12px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 14px;
+            margin-bottom: 8px;
+            border-left: 4px solid;
+            cursor: pointer;
+        }
+        .skill-node.locked { opacity: 0.5; border-left-color: #ff4757; }
+        .skill-node.available { border-left-color: var(--accent); }
+        .skill-node.mastered { border-left-color: var(--accent-tertiary); background: rgba(0,212,170,0.1); }
+        .legend-checkbox-grid {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            gap: 8px;
+            margin-top: 16px;
+        }
+        .legend-checkbox {
+            aspect-ratio: 1;
+            background: var(--bg-hover);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            cursor: pointer;
+            border: 1px solid var(--border-glass);
+        }
+        .legend-checkbox.completed {
+            background: var(--accent);
+            color: #000;
+        }
+        .structure-bars { margin: 16px 0; }
+        .structure-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+        .bar-fill { height: 12px; border-radius: 6px; background: var(--accent); transition: width 0.3s; }
+        .timer-circle {
+            width: 140px;
+            height: 140px;
+            border-radius: 50%;
+            background: conic-gradient(var(--accent) 0deg, #2a2a4a 0deg);
+            margin: 20px auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        .synergy-panel {
+            background: rgba(0, 212, 170, 0.1);
+            border-radius: 16px;
+            padding: 12px;
+            margin-top: 16px;
+        }
+        .compassion-card {
+            background: rgba(0, 212, 170, 0.1);
+            border-radius: 20px;
+            padding: 16px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-style: italic;
+        }
+        @keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes phaseGlow { 0% { box-shadow:0 0 10px var(--accent-glow); } 100% { box-shadow:0 0 30px var(--accent); } }
+        @media (max-width: 768px) {
+            body { padding-left: 0; }
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.open { transform: translateX(0); }
+            .mobile-menu-btn { display: flex; }
+            .app-container { padding: 16px; padding-top: 70px; }
+        }
+        .mobile-menu-btn {
+            display: none;
+            position: fixed;
+            top: 12px;
+            left: 12px;
+            z-index: 201;
+            background: var(--bg-card);
+            border: 1px solid var(--border-glass);
+            border-radius: 14px;
+            width: 44px;
+            height: 44px;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        .achievement-popup {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg-card-solid);
+            backdrop-filter: blur(16px);
+            padding: 12px 24px;
+            border-radius: 40px;
+            border: 1px solid var(--accent);
+            z-index: 400;
+            animation: slideUp 0.3s ease;
+            white-space: nowrap;
+        }
+        @keyframes slideUp {
+            from { transform: translateX(-50%) translateY(30px); opacity: 0; }
+            to { transform: translateX(-50%) translateY(0); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <canvas id="global-bg-canvas"></canvas>
+    <canvas id="exercise-bg-canvas"></canvas>
+    <div class="mobile-menu-btn" onclick="toggleSidebar()">☰</div>
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-logo" style="font-size:28px; margin-bottom:24px;">🎮</div>
+        <div class="sidebar-nav">
+            <div class="sidebar-item active" onclick="navigate('home')"><span class="sidebar-icon">🏠</span><span class="sidebar-label">Home</span></div>
+            <div class="sidebar-item" onclick="navigate('exercises')"><span class="sidebar-icon">💪</span><span class="sidebar-label">Exercises</span></div>
+            <div class="sidebar-item" onclick="navigate('studies')"><span class="sidebar-icon">📚</span><span class="sidebar-label">Studies</span></div>
+            <div class="sidebar-item" onclick="navigate('legend')"><span class="sidebar-icon">🎯</span><span class="sidebar-label">Legend</span></div>
+            <div class="sidebar-item" onclick="navigate('skilltree')"><span class="sidebar-icon">🌳</span><span class="sidebar-label">Skill Tree</span></div>
+            <div class="sidebar-item" onclick="navigate('profile')"><span class="sidebar-icon">👤</span><span class="sidebar-label">Profile</span></div>
+            <div class="sidebar-item" onclick="navigate('settings')"><span class="sidebar-icon">⚙️</span><span class="sidebar-label">Settings</span></div>
+        </div>
+    </aside>
+    <div class="app-container" id="app-container">
+        <!-- HOME PAGE -->
+        <div id="page-home" class="page active">
+            <div class="header-top" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <div><div class="avatar" id="avatar-home" style="width:48px; height:48px; border-radius:50%; background: var(--accent); display:inline-flex; align-items:center; justify-content:center; font-size:24px;">🎮</div><span id="username-home" style="margin-left:12px;">Adventurer</span></div>
+                <div id="phase-badge" class="phase-badge">Phase 1: Mindset Shift</div>
+            </div>
+            <div class="xp-container"><div class="level-row"><span class="level-badge">LVL <span id="level-val">1</span></span><span><span id="xp-cur">0</span>/<span id="xp-max">100</span> XP</span></div><div class="xp-bar-bg"><div class="xp-bar-fill" id="xp-bar-fill"></div></div></div>
+            <div class="stats-row"><div class="stat-card"><div class="stat-value" id="streak-val">0</div><div>🔥 Streak</div></div><div class="stat-card"><div class="stat-value" id="phase-day">Day 1</div><div>Phase Day</div></div></div>
+            <!-- 8+8+8 structure -->
+            <div class="daily-structure-widget" style="background: var(--bg-card); border-radius:20px; padding:16px; margin-bottom:20px;">
+                <div class="section-title">🌅 8+8+8 Rule</div>
+                <div class="structure-bars"><div class="structure-bar"><span>YOU TIME</span><div style="flex:1; background:#2a2a4a; border-radius:6px;"><div id="you-bar" class="bar-fill" style="width:0%"></div></div><span id="you-hrs">0/8h</span></div>
+                <div class="structure-bar"><span>DEEP WORK</span><div style="flex:1; background:#2a2a4a; border-radius:6px;"><div id="work-bar" class="bar-fill" style="width:0%"></div></div><span id="work-hrs">0/8h</span></div>
+                <div class="structure-bar"><span>SLEEP</span><div style="flex:1; background:#2a2a4a; border-radius:6px;"><div id="sleep-bar" class="bar-fill" style="width:0%"></div></div><span id="sleep-hrs">0/8h</span></div></div>
+                <button class="btn-secondary" style="background:var(--bg-hover); padding:8px;" onclick="logTimeBlockPrompt()">+ Log Hours</button>
+            </div>
+            <!-- 1-3-5 Battle plan -->
+            <div class="battle-plan-container"><div class="battle-zone the-one-zone"><div class="zone-header">🔥 THE ONE (Scary Goal)</div><div id="one-content" class="zone-content">+ Set Massive Goal</div></div>
+            <div class="battle-zone"><div class="zone-header">⚡ THE THREE (Important)</div><div id="three-content" class="zone-content"></div></div>
+            <div class="battle-zone"><div class="zone-header">✅ THE FIVE (Quick Wins)</div><div id="five-content" class="zone-content"></div></div></div>
+            <div class="compassion-card" id="compassion-msg">"Progress over perfection. The magic lies in the action you're avoiding."</div>
+            <div class="section-title">Today's Habits</div><div id="habits-grid" class="card-grid"></div>
+        </div>
+        <!-- EXERCISES PAGE with 3D male model + ascending progress -->
+        <div id="page-exercises" class="page"><div class="header"><h2>Ascending Strength</h2><div class="stat-card">Ascension Level: <span id="ascend-level">1</span> 🔥</div><div class="progress-bar-bg"><div id="ascend-progress" style="width:0%; height:8px; background:var(--accent);"></div></div></div><div id="exercise-stats" style="display:flex; gap:16px; margin:20px 0;"><div class="stat-card">Push-ups: <span id="pushup-count">0</span></div><div class="stat-card">Squats: <span id="squat-count">0</span></div></div><button class="btn-primary" onclick="recordExercise('pushup')">+ Push-up Set</button><button class="btn-primary" onclick="recordExercise('squat')">+ Squat Set</button><div style="margin-top:24px;"><h3>⚡ Ascending Challenge</h3><p>Complete daily required reps to ascend!</p><div id="challenge-target">Today's target: 10 pushups</div></div></div>
+        <!-- STUDIES & HABITS (Skill tree + certification preview) -->
+        <div id="page-studies" class="page"><div class="header"><h2>📖 Studies & Habits Mastery</h2></div><div class="category-grid"><div class="category-card" onclick="switchSkillDomain('cybersecurity')">🔒 Cybersecurity Skill Tree</div><div class="category-card" onclick="switchSkillDomain('datascience')">📊 Data Science Skill Tree</div></div><div id="skill-tree-preview" class="skill-tree-view"></div><div class="section-title">🏅 Certifications Tracker</div><div id="cert-list"></div><div id="synergies-panel" class="synergy-panel"></div></div>
+        <!-- LEGEND PAGE (90+90+1) -->
+        <div id="page-legend" class="page"><div class="header"><h2>🎯 90-Day Legend Goal</h2><p>90 minutes for 90 days on 1 life-changing goal</p></div><div id="legend-setup-area"><input type="text" id="legend-goal-input" placeholder="Your epic 90-day goal" class="form-input" style="width:100%; padding:12px; margin-bottom:12px; border-radius:12px;"><button class="btn-primary" onclick="startLegendGoal()">Begin Legend Journey</button></div><div id="legend-active-area" style="display:none;"><h3 id="legend-title"></h3><div class="timer-controls" style="margin:16px 0;"><button class="btn-secondary" onclick="startLegendTimer()">Start 90min</button><button class="btn-secondary" onclick="pauseLegendTimer()">Pause</button><button class="btn-primary" onclick="completeLegendDay()">Complete Day</button></div><div id="legend-timer" style="font-size:32px; text-align:center; margin:16px;">90:00</div><div id="legend-grid" class="legend-checkbox-grid"></div></div></div>
+        <!-- SKILL TREE full page -->
+        <div id="page-skilltree" class="page"><div class="header"><h2>🌳 Complete Skill Tree</h2><div class="skill-tree-tabs"><button class="tab-btn active" onclick="showFullSkillTree('cybersecurity')">🔒 Cybersecurity</button><button class="tab-btn" onclick="showFullSkillTree('datascience')">📊 Data Science</button></div></div><div id="full-skill-tree"></div></div>
+        <!-- PROFILE & SETTINGS -->
+        <div id="page-profile" class="page"><div class="profile-editor" style="background:var(--bg-card); border-radius:24px; padding:24px;"><label>Username</label><input id="profile-name" class="form-input" style="width:100%; padding:12px; margin:12px 0;"><button class="btn-primary" onclick="saveProfile()">Save</button></div></div>
+        <div id="page-settings" class="page"><div class="settings-item" style="padding:16px; background:var(--bg-card); border-radius:20px; margin-bottom:12px; cursor:pointer;" onclick="resetWithGrace()">Reset with Grace (Keep Phase)</div><div class="settings-item" style="padding:16px; background:var(--bg-card); border-radius:20px; margin-bottom:12px; cursor:pointer;" onclick="exportData()">Export Data</div><div class="settings-item" style="padding:16px; background:var(--bg-card); border-radius:20px; cursor:pointer;" onclick="clearStorageAndReload()">Factory Reset</div></div>
+    </div>
+    <!-- Sprint Modal -->
+    <div class="modal-overlay" id="sprint-modal"><div class="modal"><h2>⚡ 10-Minute Deadly Focus</h2><div class="timer-circle" id="sprint-circle"><span id="sprint-time">10:00</span></div><button class="btn-primary" onclick="startSprint()">Begin Sprint</button><button class="btn-secondary" onclick="closeModal('sprint-modal')" style="margin-top:12px;">Cancel</button></div></div>
+    <button class="momentum-btn" id="momentum-fab" onclick="openSprintModal()">⚡</button>
+    <script>
+        // ======================== GLOBAL STATE & INIT ========================
+        let state = {
+            profile: { username: "Adventurer", avatar: "🎮" }, level: 1, xp: 0, maxXp: 100, totalXp: 0, currentDay: 1, transformationPhase: 1,
+            dailyStructure: { youTime: 0, deepWork: 0, sleep: 0 }, daily135: { one: null, three: [], five: [] },
+            legendGoal: null, habits: [], quests: [], transformationPhases: [
+                { phase:1, days:1, name:"⚡ Mindset Shift", color:"#00d4aa" }, { phase:2, days:2, name:"🔥 Habit Forge", color:"#e74c3c" },
+                { phase:3, days:22, name:"🎯 Skill Mastery", color:"#3498db" }, { phase:4, days:91, name:"💪 Body Rebuild", color:"#27ae60" },
+                { phase:5, days:181, name:"🌟 Life Redesign", color:"#f39c12" }, { phase:6, days:366, name:"👑 The New You", color:"#8e44ad" }
+            ],
+            skillTree: { cybersecurity: {}, datascience: {} }, certifications: { cybersecurity: [], datascience: [] }, synergies: [],
+            compassionUses: 0, exerciseStats: { pushupTotal: 0, squatTotal: 0, ascendLevel: 1, ascendProgress: 0, dailyTarget: 10 }
+        };
+        function saveState() { localStorage.setItem('lifeRpgUltimate', JSON.stringify(state)); }
+        function loadState() { const s = localStorage.getItem('lifeRpgUltimate'); if(s) { Object.assign(state, JSON.parse(s)); } else { initDefaultData(); } }
+        function initDefaultData() {
+            state.habits = [{ id:"morning", name:"Morning Stretch", completed:false, streak:0 }, { id:"read", name:"Read 10 pages", completed:false, streak:0 }];
+            // Build skill trees from provided roadmap (simplified structure)
+            const cyberDomains = { "Security Architecture": { children: { "Cryptography":{xp:100,completed:false}, "Secure System Build":{xp:150,prereq:"Cryptography",completed:false} } }, "Risk Assessment": { children: { "Vulnerability Scan":{xp:90,completed:false} } } };
+            const dataDomains = { "Mathematics": { children: { "Linear Algebra":{xp:100,completed:false} } }, "Machine Learning": { children: { "Supervised":{xp:120,completed:false} } } };
+            state.skillTree.cybersecurity = cyberDomains; state.skillTree.datascience = dataDomains;
+            state.certifications.cybersecurity = [{ name:"CEH", progress:0, domains:["Security Architecture"] }];
+            state.certifications.datascience = [{ name:"Google Data Analytics", progress:0, domains:["Mathematics"] }];
+        }
+        function calcPhase() { let p = state.transformationPhases.findLast(p => state.currentDay >= p.days); state.transformationPhase = p ? p.phase : 1; document.documentElement.style.setProperty('--accent', p?.color || "#00d4aa"); }
+        function updateUI() { document.getElementById('level-val').innerText = state.level; document.getElementById('xp-cur').innerText = state.xp; document.getElementById('xp-max').innerText = state.maxXp; document.getElementById('xp-bar-fill').style.width = (state.xp/state.maxXp*100)+'%'; document.getElementById('streak-val').innerText = state.habits.filter(h=>h.streak>0).length; document.getElementById('phase-day').innerHTML = `Day ${state.currentDay}`; renderPhaseBadge(); renderDailyStructure(); render135Plan(); renderHabits(); renderExercisePage(); }
+        function renderPhaseBadge() { let phaseObj = state.transformationPhases.find(p=>p.phase===state.transformationPhase); if(phaseObj) document.getElementById('phase-badge').innerHTML = `${phaseObj.name} (Day ${state.currentDay})`; }
+        function renderDailyStructure() { document.getElementById('you-bar').style.width = (state.dailyStructure.youTime/8*100)+'%'; document.getElementById('work-bar').style.width = (state.dailyStructure.deepWork/8*100)+'%'; document.getElementById('sleep-bar').style.width = (state.dailyStructure.sleep/8*100)+'%'; document.getElementById('you-hrs').innerText = `${state.dailyStructure.youTime}/8h`; document.getElementById('work-hrs').innerText = `${state.dailyStructure.deepWork}/8h`; document.getElementById('sleep-hrs').innerText = `${state.dailyStructure.sleep}/8h`; }
+        function logTimeBlockPrompt() { let t = prompt("Log hours for: YOU TIME (1), DEEP WORK (2), SLEEP (3)"); let hrs = parseFloat(prompt("Hours:")); if(isNaN(hrs)) return; if(t=='1') state.dailyStructure.youTime = Math.min(8, state.dailyStructure.youTime+hrs); if(t=='2') state.dailyStructure.deepWork = Math.min(8, state.dailyStructure.deepWork+hrs); if(t=='3') state.dailyStructure.sleep = Math.min(8, state.dailyStructure.sleep+hrs); saveState(); renderDailyStructure(); if(state.dailyStructure.youTime>=8 || state.dailyStructure.deepWork>=8 || state.dailyStructure.sleep>=8) showAchievement("8+8+8 Bonus!","+25 XP", "Balance achieved"); awardXP(25); }
+        function awardXP(amt) { state.xp += amt; state.totalXp += amt; while(state.xp >= state.maxXp) { state.level++; state.xp -= state.maxXp; state.maxXp = Math.floor(state.maxXp*1.2); showAchievement("LEVEL UP!", `Level ${state.level}`, "You grow stronger!"); } saveState(); updateUI(); }
+        function render135Plan() { let oneDiv = document.getElementById('one-content'); oneDiv.innerHTML = state.daily135.one ? `<div class="quest-card">${state.daily135.one.name} (+${state.daily135.one.xp*2} XP) <button onclick="completeOne()">Complete</button></div>` : '<button class="btn-secondary" onclick="setMassiveGoal()">Set Massive Goal</button>'; let threeDiv = document.getElementById('three-content'); threeDiv.innerHTML = state.daily135.three.map(t=>`<div>⚡ ${t.name}</div>`).join('')||'Auto from high XP quests'; let fiveDiv = document.getElementById('five-content'); fiveDiv.innerHTML = state.daily135.five.map(f=>`<div>✅ ${f.name}</div>`).join('')||'Quick wins from micro habits'; }
+        function setMassiveGoal() { let name = prompt("Your ONE massive scary goal:"); if(name) { state.daily135.one = { name, xp: 100, completed: false }; saveState(); render135Plan(); } }
+        function completeOne() { if(state.daily135.one) { awardXP(state.daily135.one.xp*2); showAchievement("🔥 SCARY GOAL DONE!", "You faced fear!", "2x XP earned"); state.daily135.one = null; saveState(); render135Plan(); } }
+        function renderHabits() { let container = document.getElementById('habits-grid'); container.innerHTML = state.habits.map(h => `<div class="quest-card" onclick="toggleHabit('${h.id}')">${h.name} 🔥 ${h.streak}</div>`).join(''); }
+        function toggleHabit(id) { let h = state.habits.find(h=>h.id===id); if(h) { h.completed = !h.completed; if(h.completed) { h.streak++; awardXP(15); } else h.streak = Math.max(0,h.streak-1); saveState(); renderHabits(); } }
+        function renderExercisePage() { document.getElementById('ascend-level').innerText = state.exerciseStats.ascendLevel; let progress = (state.exerciseStats.ascendProgress / 100)*100; document.getElementById('ascend-progress').style.width = Math.min(100,progress)+'%'; document.getElementById('pushup-count').innerText = state.exerciseStats.pushupTotal; document.getElementById('squat-count').innerText = state.exerciseStats.squatTotal; let target = 10 + state.exerciseStats.ascendLevel*2; document.getElementById('challenge-target').innerText = `Today's target: ${target} total reps`; }
+        function recordExercise(type) { let add = type==='pushup'?5:5; if(type==='pushup') state.exerciseStats.pushupTotal += add; else state.exerciseStats.squatTotal += add; let target = 10 + state.exerciseStats.ascendLevel*2; let total = state.exerciseStats.pushupTotal + state.exerciseStats.squatTotal; if(total >= target) { state.exerciseStats.ascendLevel++; state.exerciseStats.ascendProgress = 0; awardXP(100); showAchievement("ASCEND!", `Level ${state.exerciseStats.ascendLevel}`, "Your body evolves!"); } else { state.exerciseStats.ascendProgress = (total/target)*100; awardXP(10); } saveState(); renderExercisePage(); }
+        function startLegendGoal() { let goal = document.getElementById('legend-goal-input').value; if(!goal) return; state.legendGoal = { title: goal, day:1, completedDays: [], streak:0, timerActive:false, remainingSeconds:5400 }; saveState(); renderLegendUI(); }
+        function renderLegendUI() { if(!state.legendGoal) return; document.getElementById('legend-setup-area').style.display='none'; document.getElementById('legend-active-area').style.display='block'; document.getElementById('legend-title').innerText = state.legendGoal.title; let grid = document.getElementById('legend-grid'); grid.innerHTML = ''; for(let i=1;i<=90;i++){ let box=document.createElement('div'); box.className='legend-checkbox'+(state.legendGoal.completedDays.includes(i)?' completed':''); box.innerText=i; grid.appendChild(box); } }
+        function startLegendTimer() { if(state.legendGoal.timerActive) return; state.legendGoal.timerActive=true; let interval = setInterval(()=>{ if(state.legendGoal.remainingSeconds<=0){ clearInterval(interval); completeLegendDay(); } else { state.legendGoal.remainingSeconds--; let m=Math.floor(state.legendGoal.remainingSeconds/60); let s=state.legendGoal.remainingSeconds%60; document.getElementById('legend-timer').innerText=`${m}:${s<10?'0'+s:s}`; } },1000); window.legendInterval=interval; }
+        function pauseLegendTimer() { clearInterval(window.legendInterval); state.legendGoal.timerActive=false; }
+        function completeLegendDay() { if(!state.legendGoal.completedDays.includes(state.legendGoal.day)){ state.legendGoal.completedDays.push(state.legendGoal.day); awardXP(1000); showAchievement("LEGEND DAY", "90 min done!", "+1000 XP"); } state.legendGoal.day++; if(state.legendGoal.day>90) { showAchievement("LEGEND COMPLETE","You'll shock yourself!","+10000 XP"); awardXP(10000); state.legendGoal=null; } saveState(); renderLegendUI(); }
+        function switchSkillDomain(domain) { renderSkillTree(domain); }
+        function renderSkillTree(domain) { let container = document.getElementById('skill-tree-preview'); let tree = state.skillTree[domain]; if(!tree) return; let html = ''; for(let [cat, val] of Object.entries(tree)) { html += `<div class="skill-domain"><h4>${cat}</h4>`; for(let [skill, data] of Object.entries(val.children||{})) { let status = data.completed ? 'mastered' : (data.prereq && !tree[cat]?.children?.[data.prereq]?.completed ? 'locked' : 'available'); html += `<div class="skill-node ${status}" onclick="completeSkill('${domain}','${cat}','${skill}')">${skill} +${data.xp} XP</div>`; } html+=`</div>`; } container.innerHTML = html; }
+        function completeSkill(domain,cat,skill) { let node = state.skillTree[domain][cat].children[skill]; if(node && !node.completed && (!node.prereq || state.skillTree[domain][cat].children[node.prereq]?.completed)) { node.completed=true; awardXP(node.xp); showAchievement("Skill Mastered", skill, `+${node.xp} XP`); saveState(); renderSkillTree(domain); checkSynergies(); } }
+        function checkSynergies() { let synergyList = []; if(state.skillTree.cybersecurity["Risk Assessment"]?.children["Vulnerability Scan"]?.completed && state.skillTree.datascience["Machine Learning"]?.children["Supervised"]?.completed) synergyList.push("ML + Threat Intel: +50% XP"); document.getElementById('synergies-panel').innerHTML = synergyList.length ? "🔥 Synergies: "+synergyList.join(", ") : ""; }
+        function showFullSkillTree(domain) { renderSkillTree(domain); document.getElementById('full-skill-tree').innerHTML = document.getElementById('skill-tree-preview').innerHTML; navigate('skilltree'); }
+        function resetWithGrace() { if(confirm("Clear today's fails but preserve phase?")) { state.dailyStructure = { youTime:0, deepWork:0, sleep:0 }; state.daily135.one = null; state.habits.forEach(h=>{ if(!h.completed) h.streak=0; }); saveState(); updateUI(); showAchievement("💚 Reset with Grace","Fresh start","Progress over perfection"); } }
+        function showAchievement(title, msg, detail) { let pop = document.createElement('div'); pop.className='achievement-popup'; pop.innerHTML=`<strong>${title}</strong><br>${msg}`; document.body.appendChild(pop); setTimeout(()=>pop.remove(),3000); }
+        let sprintInterval, sprintRemaining = 600;
+        function openSprintModal() { document.getElementById('sprint-modal').classList.add('active'); }
+        function startSprint() { sprintRemaining = 600; let circle = document.getElementById('sprint-time'); sprintInterval = setInterval(()=>{ if(sprintRemaining<=0){ clearInterval(sprintInterval); awardXP(150); showAchievement("Sprint Complete","+150 XP","Momentum built!"); closeModal('sprint-modal'); } else { sprintRemaining--; let m=Math.floor(sprintRemaining/60); let s=sprintRemaining%60; circle.innerText=`${m}:${s<10?'0'+s:s}`; } },1000); }
+        function closeModal(id) { document.getElementById(id).classList.remove('active'); if(sprintInterval) clearInterval(sprintInterval); }
+        function navigate(pageId) { document.querySelectorAll('.page').forEach(p=>p.classList.remove('active')); document.getElementById(`page-${pageId}`).classList.add('active'); if(pageId === 'exercises') { document.getElementById('global-bg-canvas').style.display='none'; document.getElementById('exercise-bg-canvas').style.display='block'; initMaleModel(); } else { document.getElementById('global-bg-canvas').style.display='block'; document.getElementById('exercise-bg-canvas').style.display='none'; initBrainBackground(); } }
+        function initBrainBackground() { const canvas = document.getElementById('global-bg-canvas'); if(!window.brainScene && canvas && window.THREE) { const scene = new THREE.Scene(); const camera = new THREE.PerspectiveCamera(45, canvas.clientWidth/canvas.clientHeight,0.1,100); const renderer = new THREE.WebGLRenderer({canvas,alpha:true}); renderer.setSize(canvas.clientWidth,canvas.clientHeight); const geometry = new THREE.SphereGeometry(1,64,64); const material = new THREE.MeshStandardMaterial({color:0xc4887a, roughness:0.4, emissive:0x224466}); const brain = new THREE.Mesh(geometry,material); scene.add(brain); camera.position.z=3; function animate(){ requestAnimationFrame(animate); brain.rotation.y+=0.002; renderer.render(scene,camera); } animate(); window.brainScene=true; } }
+        function initMaleModel() { const canvas = document.getElementById('exercise-bg-canvas'); if(!window.maleModel && canvas && window.THREE) { const scene = new THREE.Scene(); const camera = new THREE.PerspectiveCamera(45, canvas.clientWidth/canvas.clientHeight,0.1,100); const renderer = new THREE.WebGLRenderer({canvas,alpha:true}); renderer.setSize(canvas.clientWidth,canvas.clientHeight); const geometry = new THREE.CylinderGeometry(0.5,0.5,1.5,32); const material = new THREE.MeshStandardMaterial({color:0xdd9977}); const body = new THREE.Mesh(geometry,material); body.position.y=-0.5; scene.add(body); const headGeo = new THREE.SphereGeometry(0.4,32,32); const head = new THREE.Mesh(headGeo,material); head.position.y=0.5; scene.add(head); const light = new THREE.DirectionalLight(0xffffff,1); light.position.set(1,2,1); scene.add(light); camera.position.z=2.5; function animate(){ requestAnimationFrame(animate); body.rotation.y+=0.01; head.rotation.y+=0.01; renderer.render(scene,camera); } animate(); window.maleModel=true; } }
+        function saveProfile() { let name = document.getElementById('profile-name').value; if(name) state.profile.username = name; saveState(); updateUI(); document.getElementById('username-home').innerText = state.profile.username; }
+        function exportData() { let dataStr = JSON.stringify(state); let blob = new Blob([dataStr],{type:"application/json"}); let url=URL.createObjectURL(blob); let a=document.createElement('a'); a.href=url; a.download="liferpg.json"; a.click(); }
+        function clearStorageAndReload() { localStorage.clear(); location.reload(); }
+        function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
+        window.onload = () => { loadState(); calcPhase(); updateUI(); initBrainBackground(); saveState(); registerServiceWorker(); };
+        function registerServiceWorker() { if('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js').then(reg=>console.log('SW registered')).catch(err=>console.log('SW error',err)); } }
+        window.toggleSidebar = toggleSidebar; window.navigate = navigate; window.startLegendGoal=startLegendGoal; window.startLegendTimer=startLegendTimer; window.pauseLegendTimer=pauseLegendTimer; window.completeLegendDay=completeLegendDay; window.recordExercise=recordExercise; window.setMassiveGoal=setMassiveGoal; window.completeOne=completeOne; window.toggleHabit=toggleHabit; window.logTimeBlockPrompt=logTimeBlockPrompt; window.resetWithGrace=resetWithGrace; window.exportData=exportData; window.clearStorageAndReload=clearStorageAndReload; window.saveProfile=saveProfile; window.switchSkillDomain=switchSkillDomain; window.completeSkill=completeSkill; window.showFullSkillTree=showFullSkillTree; window.openSprintModal=openSprintModal; window.startSprint=startSprint; window.closeModal=closeModal;
+    </script>
+    <script type="importmap">{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }</script>
+    <script type="module"> import * as THREE from 'three'; window.THREE = THREE; </script>
+</body>
+</html>

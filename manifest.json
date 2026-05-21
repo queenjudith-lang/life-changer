@@ -1,0 +1,36 @@
+{
+    "name": "Life RPG - Level Up Your Life",
+    "short_name": "Life RPG",
+    "description": "Gamified habit tracker to level up your life, one quest at a time",
+    "start_url": "/index.html",
+    "scope": "/",
+    "display": "standalone",
+    "background_color": "#0a0a1a",
+    "theme_color": "#0a0a1a",
+    "orientation": "portrait-primary",
+    "icons": [
+        {
+            "src": "icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ],
+    "categories": ["productivity", "lifestyle", "health", "games"],
+    "lang": "en-US",
+    "prefer_related_applications": false,
+    "shortcuts": [
+        {
+            "name": "Add Quest",
+            "short_name": "Quest",
+            "description": "Add a new quest",
+            "url": "/index.html?action=add"
+        }
+    ]
+}
